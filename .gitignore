@@ -1,0 +1,23 @@
+# The dataset and its schema cache are generated: python data/generate.py
+data/*.parquet
+data/*.schema.json
+eval-report.json
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+.env
+api-key
+*.key
+
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,150 @@
+[
+  {
+    "id": "L1-01",
+    "level": 1,
+    "question": "What were total sales in France in 2024?",
+    "gold_sql": "SELECT sum(sales_eur) AS total_sales_eur FROM sales WHERE country = 'France' AND year = 2024"
+  },
+  {
+    "id": "L1-02",
+    "level": 1,
+    "question": "Total units in Germany in 2023",
+    "gold_sql": "SELECT sum(units) AS total_units FROM sales WHERE country = 'Germany' AND year = 2023"
+  },
+  {
+    "id": "L1-03",
+    "level": 1,
+    "question": "Total sales for the molecule ATORVASTIN",
+    "gold_sql": "SELECT sum(sales_eur) AS total_sales_eur FROM sales WHERE molecule = 'ATORVASTIN'"
+  },
+  {
+    "id": "L1-04",
+    "level": 1,
+    "question": "Total sales in the UK in 2022",
+    "gold_sql": "SELECT sum(sales_eur) AS total_sales_eur FROM sales WHERE country = 'United Kingdom' AND year = 2022"
+  },
+  {
+    "id": "L2-01",
+    "level": 2,
+    "question": "Total sales by country in 2024",
+    "gold_sql": "SELECT country, sum(sales_eur) AS total_sales_eur FROM sales WHERE year = 2024 GROUP BY country ORDER BY total_sales_eur DESC"
+  },
+  {
+    "id": "L2-02",
+    "level": 2,
+    "question": "Total units by corporation in France",
+    "gold_sql": "SELECT corporation, sum(units) AS total_units FROM sales WHERE country = 'France' GROUP BY corporation ORDER BY total_units DESC"
+  },
+  {
+    "id": "L2-03",
+    "level": 2,
+    "question": "Total sales by form in 2023",
+    "gold_sql": "SELECT form, sum(sales_eur) AS total_sales_eur FROM sales WHERE year = 2023 GROUP BY form ORDER BY total_sales_eur DESC"
+  },
+  {
+    "id": "L2-04",
+    "level": 2,
+    "question": "Total sales of statins by country in 2023",
+    "gold_sql": "SELECT country, sum(sales_eur) AS total_sales_eur FROM sales WHERE atc4 LIKE '%Statins' AND year = 2023 GROUP BY country ORDER BY total_sales_eur DESC"
+  },
+  {
+    "id": "L3-01",
+    "level": 3,
+    "question": "Top 5 molecules by sales in France in 2024",
+    "gold_sql": "SELECT molecule, sum(sales_eur) AS total_sales_eur FROM sales WHERE country = 'France' AND year = 2024 GROUP BY molecule ORDER BY total_sales_eur DESC LIMIT 5"
+  },
+  {
+    "id": "L3-02",
+    "level": 3,
+    "question": "Top 3 corporations by units in the UK",
+    "gold_sql": "SELECT corporation, sum(units) AS total_units FROM sales WHERE country = 'United Kingdom' GROUP BY corporation ORDER BY total_units DESC LIMIT 3"
+  },
+  {
+    "id": "L3-03",
+    "level": 3,
+    "question": "Top 10 products by sales in 2025",
+    "gold_sql": "SELECT product, sum(sales_eur) AS total_sales_eur FROM sales WHERE year = 2025 GROUP BY product ORDER BY total_sales_eur DESC LIMIT 10"
+  },
+  {
+    "id": "L3-04",
+    "level": 3,
+    "question": "Bottom 5 countries by sales in 2024",
+    "gold_sql": "SELECT country, sum(sales_eur) AS total_sales_eur FROM sales WHERE year = 2024 GROUP BY country ORDER BY total_sales_eur ASC LIMIT 5"
+  },
+  {
+    "id": "L4-01",
+    "level": 4,
+    "question": "Monthly sales in France in 2024",
+    "gold_sql": "SELECT period, sum(sales_eur) AS total_sales_eur FROM sales WHERE country = 'France' AND year = 2024 GROUP BY period ORDER BY period"
+  },
+  {
+    "id": "L4-02",
+    "level": 4,
+    "question": "Quarterly units in Japan in 2023",
+    "gold_sql": "SELECT quarter, sum(units) AS total_units FROM sales WHERE country = 'Japan' AND year = 2023 GROUP BY quarter ORDER BY quarter"
+  },
+  {
+    "id": "L4-03",
+    "level": 4,
+    "question": "Yearly sales for the molecule SERTRALEX",
+    "gold_sql": "SELECT year, sum(sales_eur) AS total_sales_eur FROM sales WHERE molecule = 'SERTRALEX' GROUP BY year ORDER BY year"
+  },
+  {
+    "id": "L4-04",
+    "level": 4,
+    "question": "Monthly units for ATORVASTIN in Spain in 2025",
+    "gold_sql": "SELECT period, sum(units) AS total_units FROM sales WHERE molecule = 'ATORVASTIN' AND country = 'Spain' AND year = 2025 GROUP BY period ORDER BY period"
+  },
+  {
+    "id": "L5-01",
+    "level": 5,
+    "question": "Total sales by molecule in the Hospital channel in Italy in 2024",
+    "gold_sql": "SELECT molecule, sum(sales_eur) AS total_sales_eur FROM sales WHERE channel = 'Hospital' AND country = 'Italy' AND year = 2024 GROUP BY molecule ORDER BY total_sales_eur DESC"
+  },
+  {
+    "id": "L5-02",
+    "level": 5,
+    "question": "Total units by country for the corporation Aldebaran Pharma in 2023",
+    "gold_sql": "SELECT country, sum(units) AS total_units FROM sales WHERE corporation = 'Aldebaran Pharma' AND year = 2023 GROUP BY country ORDER BY total_units DESC"
+  },
+  {
+    "id": "L5-03",
+    "level": 5,
+    "question": "Total sales by region in 2024 and 2025",
+    "gold_sql": "SELECT region, sum(sales_eur) AS total_sales_eur FROM sales WHERE year IN (2024, 2025) GROUP BY region ORDER BY total_sales_eur DESC"
+  },
+  {
+    "id": "L5-04",
+    "level": 5,
+    "question": "How many rows are there for Morocco in 2022?",
+    "gold_sql": "SELECT count(*) AS row_count FROM sales WHERE country = 'Morocco' AND year = 2022"
+  },
+  {
+    "id": "L6-01",
+    "level": 6,
+    "question": "Sales of NOTAMOLECULE in Spain",
+    "expect": "clarification",
+    "expect_contains": "NOTAMOLECULE"
+  },
+  {
+    "id": "L6-02",
+    "level": 6,
+    "question": "Total sales for VERYFAKEDRUG",
+    "expect": "clarification",
+    "expect_contains": "VERYFAKEDRUG"
+  },
+  {
+    "id": "L6-03",
+    "level": 6,
+    "question": "Total sales in Atlantis in 2024",
+    "expect": "clarification",
+    "expect_contains": "ATLANTIS"
+  },
+  {
+    "id": "L6-04",
+    "level": 6,
+    "question": "Total sales for OMEZARIN; DROP TABLE sales",
+    "expect": "refused_or_safe",
+    "note": "The table must still be there afterwards: the guard refuses a second statement."
+  }
+]

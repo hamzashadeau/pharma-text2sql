@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Build the dataset
+        run: python data/generate.py
+
+      - name: Tests
+        run: pytest -q
+
+      # The evaluation runs on every push, with no API key: the deterministic
+      # planner answers, so the suite costs nothing and a regression in the
+      # guard, the resolver or the planner fails the build instead of being
+      # noticed in production.
+      - name: Evaluation suite
+        run: python eval/run_eval.py --min-accuracy 0.95 --json eval-report.json
+
+      - name: Upload the evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ matrix.python-version }}
+          path: eval-report.json
