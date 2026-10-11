@@ -41,7 +41,7 @@ pip install -e ".[dev]"
 python data/generate.py                       # synthetic dataset, ~65k rows
 
 python -m pharma_text2sql "top 5 molecules by sales in France in 2024"
-pytest -q                                     # 42 tests
+pytest -q                                     # 59 tests
 python eval/run_eval.py                       # scored evaluation
 ```
 
@@ -164,6 +164,61 @@ is as a tripwire, and that is how CI uses it.
 
 ---
 
+## Demand forecasting and backtesting
+
+A second, independent module: `pharma_text2sql.forecast`. It answers a question
+the text-to-SQL side cannot — *how much will this product sell next quarter* —
+and it is built around the measurement rather than around the model.
+
+```bash
+python -m pharma_text2sql.forecast --level molecule --horizon 3
+python -m pharma_text2sql.forecast --csv history.csv \
+    --series-col product_code --date-col month --value-col units
+```
+
+```
+         model  series  mape  wape  mase  bias  beats_seasonal_naive
+  holt_winters      10  3.06  3.15  0.68 -2.40                100.00
+seasonal_naive      10  5.57  5.80  1.11 -5.37                  0.00
+         naive      10  7.74  7.21  1.99 -0.63                 50.00
+         drift      10  7.94  7.39  2.04 -0.30                 50.00
+moving_average      10 10.98 10.17  2.81 -1.23                 10.00
+```
+
+**Baselines first.** Three of the five models are trivial on purpose. "MAPE
+3.1%" means nothing until you know that answering *the same month last year*
+scores 5.6% on the same data. A forecasting project without baselines cannot
+tell whether its model earned anything.
+
+**Rolling origin, never a single split.** Standing at the end of month *t*,
+knowing nothing after it, predict *t+1 … t+h*; move one month forward; repeat.
+A single train/test split is one draw — a calm test year flatters the model, a
+discontinued product damns it. `tests/test_forecast.py` contains a spy model
+that records the history it is handed at every origin and asserts no future
+value ever leaks into training: that property is what the whole harness exists
+to guarantee.
+
+**Three metrics, because MAPE lies on this data.** MAPE divides by the actual,
+so a month selling 3 units outweighs a month selling 30 000 — and
+pharmaceutical portfolios are full of small months: launches, stockouts,
+hospital products ordered in batches. So MAPE is reported (it is what people
+ask for) next to **WAPE**, which weights by volume, and **MASE**, which is
+scaled by the seasonal-naive error and is the only one comparable across
+products of different sizes. Bias is separate because it is actionable:
+being 10% low *every* month causes stockouts, while being 10% wrong in both
+directions only costs safety stock.
+
+**What the numbers above are worth: nothing.** The demo runs on the synthetic
+dataset, whose series are generated as trend × seasonality × noise — which is
+precisely the structure Holt-Winters assumes. The model is recovering its own
+generating process, so winning is tautological. The table demonstrates that the
+harness runs and that the ranking is coherent; **it is not evidence that
+Holt-Winters forecasts real demand well.** Only a backtest on real history can
+say that, which is exactly why the harness takes an arbitrary
+`(series, date, value)` table and knows nothing about where it came from.
+
+---
+
 ## Layout
 
 ```
@@ -177,10 +232,14 @@ src/pharma_text2sql/
 ├── sandbox.py       out-of-process execution of generated Python
 ├── pipeline.py      the two phases: explain / execute
 ├── api.py           FastAPI surface
-└── cli.py           command line
+├── cli.py           command line
+└── forecast/        demand forecasting, independent of the pipeline
+    ├── models.py    naive, seasonal naive, moving average, drift, Holt-Winters
+    ├── metrics.py   MAPE, WAPE, MASE, bias — and why three of them
+    └── backtest.py  rolling-origin evaluation
 data/generate.py     synthetic dataset generator
 eval/                question set + scoring
-tests/               42 tests
+tests/               59 tests
 ```
 
 Configuration is environment-driven (`P2S_MODELS`, `P2S_MAX_ROWS`,

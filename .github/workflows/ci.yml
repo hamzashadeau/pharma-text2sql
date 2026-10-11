@@ -38,6 +38,12 @@ jobs:
       - name: Evaluation suite
         run: python eval/run_eval.py --min-accuracy 0.95 --json eval-report.json
 
+      # Baselines only: Holt-Winters fits a grid per origin, which is minutes
+      # on a full portfolio and buys nothing here. What CI must catch is the
+      # harness breaking, not the model's score moving.
+      - name: Forecast backtest
+        run: python -m pharma_text2sql.forecast --level molecule --max-series 5 --fast
+
       - name: Upload the evaluation report
         if: always()
         uses: actions/upload-artifact@v4
