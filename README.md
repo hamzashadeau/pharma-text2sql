@@ -41,7 +41,7 @@ pip install -e ".[dev]"
 python data/generate.py                       # synthetic dataset, ~65k rows
 
 python -m pharma_text2sql "top 5 molecules by sales in France in 2024"
-pytest -q                                     # 91 tests
+pytest -q                                     # 105 tests
 python eval/run_eval.py                       # scored evaluation
 ```
 
@@ -294,6 +294,7 @@ src/pharma_text2sql/
 │   ├── faithfulness.py  are the cited figures in the table? (deterministic)
 │   ├── compare.py       what moved between two runs, question by question
 │   ├── run.py           accuracy, status mix, latency percentiles, cost
+│   ├── resultset.py     same data or not: row/column order and aliases forgiven
 │   └── judge.py         a model reading the answers, never a build gate
 └── forecast/        demand forecasting, independent of the pipeline
     ├── models.py    naive, seasonal naive, moving average, drift, Holt-Winters
@@ -301,7 +302,7 @@ src/pharma_text2sql/
     └── backtest.py  rolling-origin evaluation
 data/generate.py     synthetic dataset generator
 eval/                question set + scoring
-tests/               91 tests
+tests/               105 tests
 ```
 
 Configuration is environment-driven (`P2S_MODELS`, `P2S_MAX_ROWS`,

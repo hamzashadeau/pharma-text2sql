@@ -32,40 +32,10 @@ import pandas as pd  # noqa: E402
 from pharma_text2sql import llm, pipeline, schema  # noqa: E402
 from pharma_text2sql.evaluation import compare as compare_runs  # noqa: E402
 from pharma_text2sql.evaluation import faithfulness  # noqa: E402
+from pharma_text2sql.evaluation import resultset  # noqa: E402
 from pharma_text2sql.evaluation.run import QuestionResult, Run  # noqa: E402
 
 QUESTIONS = Path(__file__).with_name("questions.json")
-TOLERANCE = 0.005  # 0.5% — floating-point sums reorder depending on the plan
-
-
-def normalise(frame: pd.DataFrame) -> list[tuple]:
-    """Order-insensitive, name-insensitive view of a result set."""
-    rows = []
-    for row in frame.itertuples(index=False):
-        cells = []
-        for cell in row:
-            if isinstance(cell, (int, float)) and not isinstance(cell, bool):
-                cells.append(round(float(cell), 2))
-            else:
-                cells.append(str(cell))
-        rows.append(tuple(cells))
-    return sorted(rows, key=lambda r: [str(c) for c in r])
-
-
-def close_enough(got: list[tuple], want: list[tuple]) -> bool:
-    if len(got) != len(want):
-        return False
-    for row_got, row_want in zip(got, want):
-        if len(row_got) != len(row_want):
-            return False
-        for a, b in zip(row_got, row_want):
-            if isinstance(a, float) and isinstance(b, float):
-                scale = max(abs(a), abs(b), 1.0)
-                if abs(a - b) / scale > TOLERANCE:
-                    return False
-            elif a != b:
-                return False
-    return True
 
 
 def score_one(case: dict) -> dict:
@@ -111,7 +81,9 @@ def score_one(case: dict) -> dict:
             result["detail"] = answer.error
         else:
             gold = schema.query(case["gold_sql"])
-            if close_enough(normalise(answer.to_frame()), normalise(gold)):
+            # Same data, whatever the SQL looked like: row order, column order
+            # and aliases are the model's free choices, not the answer.
+            if resultset.equivalent(answer.to_frame(), gold):
                 result["passed"] = True
                 result["detail"] = f"{answer.row_count} rows"
             else:
