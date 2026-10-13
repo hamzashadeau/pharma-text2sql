@@ -52,6 +52,30 @@ def test_a_column_total_is_supported():
     assert result.ok, result.summary()
 
 
+def test_a_column_average_is_supported():
+    """An analytics answer states derived aggregates constantly.
+
+    Flagging "on average 19.7 million" as invented, when it is the mean of the
+    column displayed right above it, is a false alarm — and false alarms are
+    how a check ends up switched off.
+    """
+    mean = FRAME["total_sales_eur"].mean()
+    result = faithfulness.check(f"On average {mean:,.2f} per country.", FRAME)
+    assert result.ok, result.summary()
+
+
+def test_a_column_maximum_is_supported():
+    peak = FRAME["total_sales_eur"].max()
+    result = faithfulness.check(f"The peak is {peak:,.2f}.", FRAME)
+    assert result.ok, result.summary()
+
+
+def test_widening_to_aggregates_still_catches_an_invented_figure():
+    """The widening must not swallow the case the check exists for."""
+    result = faithfulness.check("Sales reached 123,456,789 across the board.", FRAME)
+    assert not result.ok
+
+
 def test_digits_inside_a_label_are_not_figures():
     """"Aciclovex 20 MG" carries a 20 that claims nothing about a quantity.
 

@@ -103,7 +103,15 @@ class Faithfulness:
 
 
 def _to_float(raw: str) -> float | None:
-    text = raw.strip().replace(" ", " ").replace(" ", " ")
+    text = re.sub(r"[\s\u00a0\u202f]", "", raw.strip())
+
+    # Two or more separators can only be thousands groups: "123,456,789",
+    # "1.234.567". Handled first and explicitly - letting these fall through
+    # to the heuristic below made float() raise, and a figure that fails to
+    # parse is dropped without ever being checked. A hallucinated number
+    # written with grouped thousands sailed straight past the whole module.
+    if re.fullmatch(r"\d{1,3}(?:[.,]\d{3})+", text):
+        return float(re.sub(r"[.,]", "", text))
 
     # Decide which separator is the decimal one. "1,234" is ambiguous on its
     # own; the shape of the groups settles it.
@@ -174,8 +182,16 @@ def _supported_values(frame: pd.DataFrame) -> list[float]:
         if series.empty:
             continue
         values.extend(float(v) for v in series)
-        # Narration routinely totals a column the table shows broken down.
-        values.append(float(series.sum()))
+        # Narration routinely states an aggregate of a column the table shows
+        # broken down — "together they sold X", "on average Y", "peaking at Z".
+        # Without these, every correctly derived figure is reported as invented,
+        # which is the fastest way to get the whole check switched off.
+        values.extend([
+            float(series.sum()),
+            float(series.mean()),
+            float(series.min()),
+            float(series.max()),
+        ])
     return values
 
 

@@ -41,7 +41,7 @@ pip install -e ".[dev]"
 python data/generate.py                       # synthetic dataset, ~65k rows
 
 python -m pharma_text2sql "top 5 molecules by sales in France in 2024"
-pytest -q                                     # 88 tests
+pytest -q                                     # 91 tests
 python eval/run_eval.py                       # scored evaluation
 ```
 
@@ -171,7 +171,7 @@ an accuracy column leaves out.
 right, and the sentence underneath says *sales reached 4.2 million* when no
 cell holds 4.2 million. The reader quotes the sentence. So every figure in the
 narration is extracted and matched against the result — cells, row count,
-column totals — with a tolerance, because narration rounds and "37.7 million"
+column totals, means and extremes — with a tolerance, because narration rounds and "37.7 million"
 for 37 680 097.44 is correct. Numbers that belong to a label the table contains
 (`Aciclovex 20 MG`, `2024-01`) are masked first, and percentages are reported
 as *unchecked* rather than quietly counted as supported. No model is asked
@@ -301,7 +301,7 @@ src/pharma_text2sql/
     └── backtest.py  rolling-origin evaluation
 data/generate.py     synthetic dataset generator
 eval/                question set + scoring
-tests/               88 tests
+tests/               91 tests
 ```
 
 Configuration is environment-driven (`P2S_MODELS`, `P2S_MAX_ROWS`,
