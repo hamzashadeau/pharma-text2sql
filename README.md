@@ -41,7 +41,7 @@ pip install -e ".[dev]"
 python data/generate.py                       # synthetic dataset, ~65k rows
 
 python -m pharma_text2sql "top 5 molecules by sales in France in 2024"
-pytest -q                                     # 59 tests
+pytest -q                                     # 88 tests
 python eval/run_eval.py                       # scored evaluation
 ```
 
@@ -162,6 +162,63 @@ it tells you the pipeline still behaves as specified, not that it would handle
 any question a market analyst could invent. The honest use of a figure like this
 is as a tripwire, and that is how CI uses it.
 
+### Scoring beyond accuracy
+
+`pharma_text2sql.evaluation` carries the parts of scoring an LLM pipeline that
+an accuracy column leaves out.
+
+**Faithfulness, checked deterministically.** The query runs, the table is
+right, and the sentence underneath says *sales reached 4.2 million* when no
+cell holds 4.2 million. The reader quotes the sentence. So every figure in the
+narration is extracted and matched against the result — cells, row count,
+column totals — with a tolerance, because narration rounds and "37.7 million"
+for 37 680 097.44 is correct. Numbers that belong to a label the table contains
+(`Aciclovex 20 MG`, `2024-01`) are masked first, and percentages are reported
+as *unchecked* rather than quietly counted as supported. No model is asked
+whether the model was honest: that is circular, costs money per question, and
+cannot run on every push. This one does.
+
+**Run-to-run comparison, which needs no ground truth.** A prompt change moves a
+dozen questions in both directions and the summary line barely twitches; what
+happened is that four started working and three stopped. `--compare` diffs two
+runs question by question and names them:
+
+```bash
+python eval/run_eval.py --save-run runs/baseline.json
+# ... change a prompt ...
+python eval/run_eval.py --compare runs/baseline.json --fail-on-regression
+```
+
+```
+current vs baseline
+0 improved, 14 regressed
+
+regressions:
+  [L3-01] Top 5 molecules by sales in France in 2024
+      passed before, fails now
+```
+
+Because it compares *outcomes*, an answer that worked yesterday and errors
+today is a regression whether or not anyone wrote down the right answer. That
+makes a frozen, human-reviewed run a usable stand-in for a labelled set — and a
+far cheaper one to start with, which is the situation most teams are actually
+in. Latency changes are reported but never fail the build: failing on one slow
+provider call teaches people to ignore the build.
+
+**A judge, for what arithmetic cannot settle.** A query returning 2023 when the
+user asked for 2024 is perfectly faithful to its own result. `judge.py` asks a
+model, against the question, the SQL, the result and the stated target, with a
+rubric that defaults to *fail* when evidence is thin. With no API key every
+verdict is `unavailable` and the report says so — a judge that silently returns
+"pass" when it did not run is worse than no judge. Its verdicts flag answers
+for human review; they never gate a build.
+
+**Operational facts.** Status mix per complexity level, latency at p50/p95
+(never the mean — one rate-limit retry puts the mean where nobody lives), and
+cost per thousand questions. Accuracy reports `None`, never `0%`, when a run
+carries no ground truth: the difference between *wrong* and *not measured* has
+to survive every layer that touches it.
+
 ---
 
 ## Demand forecasting and backtesting
@@ -233,13 +290,18 @@ src/pharma_text2sql/
 ├── pipeline.py      the two phases: explain / execute
 ├── api.py           FastAPI surface
 ├── cli.py           command line
+├── evaluation/      scoring: faithfulness, run model, comparison, judge
+│   ├── faithfulness.py  are the cited figures in the table? (deterministic)
+│   ├── compare.py       what moved between two runs, question by question
+│   ├── run.py           accuracy, status mix, latency percentiles, cost
+│   └── judge.py         a model reading the answers, never a build gate
 └── forecast/        demand forecasting, independent of the pipeline
     ├── models.py    naive, seasonal naive, moving average, drift, Holt-Winters
     ├── metrics.py   MAPE, WAPE, MASE, bias — and why three of them
     └── backtest.py  rolling-origin evaluation
 data/generate.py     synthetic dataset generator
 eval/                question set + scoring
-tests/               59 tests
+tests/               88 tests
 ```
 
 Configuration is environment-driven (`P2S_MODELS`, `P2S_MAX_ROWS`,

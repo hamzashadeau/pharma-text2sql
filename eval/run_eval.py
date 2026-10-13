@@ -30,6 +30,9 @@ sys.path.insert(0, str(ROOT / "src"))
 import pandas as pd  # noqa: E402
 
 from pharma_text2sql import llm, pipeline, schema  # noqa: E402
+from pharma_text2sql.evaluation import compare as compare_runs  # noqa: E402
+from pharma_text2sql.evaluation import faithfulness  # noqa: E402
+from pharma_text2sql.evaluation.run import QuestionResult, Run  # noqa: E402
 
 QUESTIONS = Path(__file__).with_name("questions.json")
 TOLERANCE = 0.005  # 0.5% — floating-point sums reorder depending on the plan
@@ -117,7 +120,26 @@ def score_one(case: dict) -> dict:
                     f"expected {len(gold)} rows"
                 )
 
+    # Status and faithfulness are recorded for every question, including the
+    # ones with no ground truth: they are what makes two runs comparable when
+    # nobody has written down the right answer yet.
+    result["status"] = (
+        "success" if answer.ok
+        else "clarification" if expect == "clarification" or "matches several" in answer.error
+        else "error"
+    )
+    if answer.ok and answer.row_count == 0:
+        result["status"] = "empty"
+    result["answer"] = answer.narration
     result["elapsed_s"] = round(time.monotonic() - started, 3)
+
+    if answer.ok and answer.narration:
+        checked = faithfulness.check(
+            answer.narration, answer.to_frame(), question=case["question"]
+        )
+        result["faithfulness"] = checked.score
+        if not checked.ok:
+            result["faithfulness_detail"] = checked.summary()
     return result
 
 
@@ -126,6 +148,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", type=Path, help="write the full report here")
     parser.add_argument("--min-accuracy", type=float, default=None,
                         help="exit non-zero below this overall accuracy")
+    parser.add_argument("--save-run", type=Path,
+                        help="write this run so a later one can be compared to it")
+    parser.add_argument("--compare", type=Path,
+                        help="compare against a run saved earlier")
+    parser.add_argument("--fail-on-regression", action="store_true",
+                        help="exit non-zero if any question got worse than the baseline")
     args = parser.parse_args(argv)
 
     cases = json.loads(QUESTIONS.read_text(encoding="utf-8"))
@@ -160,17 +188,62 @@ def main(argv: list[str] | None = None) -> int:
         for r in failures:
             print(f"  [{r['id']}] {r['question']}\n      {r['detail']}")
 
+    run = Run(
+        label=args.save_run.stem if args.save_run else "current",
+        mode=mode,
+        results=[
+            QuestionResult(
+                id=r["id"],
+                question=r["question"],
+                level=r["level"],
+                status=r.get("status", "error"),
+                answer=r.get("answer", ""),
+                sql=r.get("sql", ""),
+                passed=r["passed"],
+                faithfulness=r.get("faithfulness"),
+                duration_s=r.get("elapsed_s", 0.0),
+            )
+            for r in results
+        ],
+    )
+
+    print()
+    print(run.report())
+
+    unfaithful = [r for r in results if r.get("faithfulness_detail")]
+    if unfaithful:
+        print(f"\n{len(unfaithful)} answers cite a figure the result table does not contain:")
+        for r in unfaithful:
+            print(f"  [{r['id']}] {r['faithfulness_detail']}")
+
+    exit_code = 0
+
+    if args.compare:
+        if not args.compare.exists():
+            print(f"\nbaseline not found: {args.compare}")
+        else:
+            comparison = compare_runs.compare(Run.from_json(args.compare), run)
+            print()
+            print(comparison.report())
+            if args.fail_on_regression and not comparison.ok:
+                print(f"\nFAIL: {len(comparison.regressions)} question(s) regressed")
+                exit_code = 1
+
+    if args.save_run:
+        run.to_json(args.save_run)
+        print(f"\nrun saved to {args.save_run}")
+
     if args.json:
         args.json.write_text(
             json.dumps({"mode": mode, "accuracy": accuracy, "results": results}, indent=2),
             encoding="utf-8",
         )
-        print(f"\nreport written to {args.json}")
+        print(f"report written to {args.json}")
 
     if args.min_accuracy is not None and accuracy < args.min_accuracy:
         print(f"\nFAIL: accuracy {accuracy:.0%} below the {args.min_accuracy:.0%} bar")
-        return 1
-    return 0
+        exit_code = 1
+    return exit_code
 
 
 if __name__ == "__main__":

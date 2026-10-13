@@ -36,7 +36,13 @@ jobs:
       # guard, the resolver or the planner fails the build instead of being
       # noticed in production.
       - name: Evaluation suite
-        run: python eval/run_eval.py --min-accuracy 0.95 --json eval-report.json
+        run: python eval/run_eval.py --min-accuracy 0.95 --json eval-report.json --save-run run.json
+
+      # Compares this run against the committed baseline and fails on any
+      # question that got worse — including questions with no ground truth,
+      # where a status or faithfulness drop is the only signal available.
+      - name: Regression against the baseline
+        run: python eval/run_eval.py --compare eval/baseline.json --fail-on-regression
 
       # Baselines only: Holt-Winters fits a grid per origin, which is minutes
       # on a full portfolio and buys nothing here. What CI must catch is the
