@@ -14,13 +14,13 @@ from __future__ import annotations
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-from . import llm, schema
+from . import __version__, llm, schema
 from . import pipeline as _pipeline
 
 app = FastAPI(
     title="pharma-text2sql",
     description="Natural-language questions over a pharmaceutical sales table, with guardrails.",
-    version="0.1.0",
+    version=__version__,
 )
 
 
